@@ -1,0 +1,31 @@
+data <- read.csv("C:/Users/choih/OneDrive/Desktop/train_no_na.csv")
+
+
+# Convert character variables to numeric
+for (col in names(data)) {
+  if (is.character(data[[col]])) {  # Check if the column is of type character
+    if (all(!is.na(suppressWarnings(as.numeric(data[[col]]))))) {
+      # If the column can be directly converted to numeric (numeric text)
+      data[[col]] <- as.numeric(data[[col]])
+    } else {
+      # If it's a categorical variable, convert to factor and then to numeric
+      data[[col]] <- as.numeric(factor(data[[col]]))
+    }
+  }
+}
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Define the predictor variables (assume columns 2 to 77 are predictors) and the target variable (assume column 1 is the target)
+x <- as.matrix(data[, 2:74])  # Predictor variables (columns 2 to 77)
+y <- data[, 1]  # Target variable (column 1)
+
+# Fit the Lasso model using cross-validation
+data.glmnet2 <- cv.glmnet(x, y, alpha = 1)
+
+# Get the optimal tuning parameter (lambda)
+best.lambda2 <- data.glmnet2$lambda.min
+
+# Check parameter estimates for the optimal model
+coef(data.glmnet2, s = best.lambda2)

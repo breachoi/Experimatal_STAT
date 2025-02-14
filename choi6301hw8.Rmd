@@ -1,0 +1,128 @@
+---
+title: "STAT6301HW8"
+author: "Heesu Choi"
+date: "2024-11-21"
+output: pdf_document
+editor: visual
+---
+
+# Part 1 (50 points total, 10 points each)
+
+### Answer the following from the textbook (Chapter 9):
+
+a)  Conceptual Exercise #1: Meadowfoam\
+
+    (a) Write down a multiple regression model with parallel regression lines of flowers on light for the two separate levels of time (using an indicator variable).\
+
+    -   let separate time 24 and 0. Define early (1 = 24) and not early(0 = 0). The equation of two separate levels of time is $\mu${Flower\|light, Early} = $\beta o$ + $\beta 1light$ + $\beta 2early$ .\
+        $\beta o$ : light = 0 early = 0\
+        $\beta 1light$ : how much number of flowers changes for unit increase in light\
+        $\beta 2early$ : how the number of flowers changes when the time change.\
+
+    (b) Add a term to the model in (a) so that the regression lines are not parallel.
+
+        term: whether the time is at 0 or 24.\
+        Equation: $\mu${Flower\|light, Early} = $\beta o$ + $\beta 1light$ + $\beta 2early$ +$\beta 3 (light * early)$\
+        $\beta o$ : light = 0 early = 0\
+        $\beta 1light$ : how much number of flowers changes for unit increase in light\
+        $\beta 2early$ : how the number of flowers changes when the time change.\
+        $\beta 3 (light * early)$ : how the effect of light on flowers changes when early 1 or 0.\
+
+b)  Conceptual Exercise #2: Meadowfoam.\
+    A model (without interaction) for the meanflowers is estimated to be 71.3058 - 0:0405light + 12.1583 early. For a fixed level of timing, what is the estimated difference between the meanflowers at 600 and 300 $\mu$ mol/ $m^2$ /sec of light intensity?\
+
+    -   (71.3058 - 0:0405(300) + 12.1583) - (71.3058 - 0:0405(600) + 12.1583) = 12.15
+
+c)  Conceptual Exercise #4: Mammal Brain Weights.\
+    The three-toed sloth has a gestation period of 165 days. The Indian fruit bat has a gestation period of 145 days. From Display 9.14 the estimated model for the mean of log brain weight is 0.8548 + 0.5751 lbody + 0.4179lgest - 0.3101 llitter. Since lgest for the sloth is 0.1292 more than lgest for the fruit bat, does this imply that an estimate of the mean log brain weight for the sloth is (0.4179)(0.1292) more than the mean log brain weight for the bat (i.e., the median is 5.5% higher)? Why? Why not?
+
+    :No, Because we cannot change the explanatory variables that what we want during work on regression coefficients individually.
+
+d)  Conceptual Exercise #7: Which of the following regression models are linear?\
+    Answer:\
+
+    (a) $\mu${Y\|X} = $\beta o$ + $\beta 1X$ + $\beta 2X^2$ + $\beta X^3$ : yes\
+    (b) $\mu${Y\|X} = $\beta o$ + $\beta 1 10^X$ yes\
+    (c) $\mu${Y\|X} = ( $\beta o$ + $\beta 1X$ ) / ( $\beta o$ + $\beta 2X$ ) No\
+    (d) $\mu${Y\|X} = $\beta o$ $\exp$ ($\beta 1X$) No\
+
+e)  Conceptual Exercise #11: Glasgow Graveyards\
+
+    (a) After accounting for year of obelisk construction, each extra meter in obelisk height is associated with Z extra years in mean lifetime. What is the estimated Z for males? What is the estimated Z for females?  
+
+        -   Male: 1.93
+
+        -   Female: 2.92
+
+    (b) Since the coefficients differ significantly from zero, would it be wise for an individual to build an extremely tall obelisk, to ensure a long life time?\
+        : No, When regression analysis is performed on the results the interpretation of an "effect" of an explanatory variable is straightforward, and causation is implied. However, in this data, we could not find the cause-and-effect.
+
+    (c) The data were collected from eight different graveyards in Glasgow. Since there is a potential blocking effect due to the different graveyards, it might be appropriate to include a graveyard effect in the model. How can this be done?
+
+        :To find the 8 graveyards, we can use seven indicators.
+
+        \
+
+# Part 2 (50 points total, 25 points each)
+
+a)  Answer Computational Exercise #14 from the textbook (Chapter 9). The data are available on Canvas (ex0914.csv). Use SAS for this exercise.
+
+    a)
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw81.jpg")
+```
+    
+
+    b)
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw84.jpg")
+```
+    
+
+    c) We can see in the plost, there is not strong evidence that variance of the residuals increases with increasing fitted value.
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw85.jpg")
+```
+    
+
+    d) $\hat{Heart}$ = 0.40522Bank + 0.45160Walk + -0.17961Talk + 3.17870
+      - Bank: 0.19710
+      - Walk: 0.20087
+      - Talk: 0.22222
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw84.jpg")
+```
+    
+
+b)  Answer Computational Exercise #17 from the textbook (Chapter 9). The data are available on Canvas (ex0722.csv). In addition to writing down the estimated model, use this model to write down three separate sub-models, one for each species of crab. Use R for this exercise.\
+  a) Draw a scatterplot of claw closing force versus propodus height (both on a log scale), with different plotting symbols to distinguish the three different crab species, and
+```{r}
+library(ggplot2)
+library(dplyr)
+
+crabs <- read.csv("C:/Users/choih/OneDrive/Desktop/ex0722.csv")
+
+crabs <- crabs %>%
+  mutate(log_Force = log(Force), log_Height = log(Height))
+
+ggplot(crabs, aes(x = log_Height, y = log_Force, color = Species, shape = Species)) +
+  geom_point(size = 3) +
+  labs(
+    title = "Scatterplot of Log(Force) vs Log(Height)",
+    x = "Log(Height)",
+    y = "Log(Force)"
+  ) +
+  theme_minimal()
+
+```
+  b) Fit the multiple regression of log force on log height and species (as a factor). Provide the estimated model including standard errors of estimated regression coefficients. (See Exercises 10.9 and 10.10 for analyses that explore a more sophisticated model for these data.)
+  $\hat{logForce}$ =  1.6703logHeights -1.0143Hemigrapsus -0.0218Lophopanopeus -1.0414
+  Hemigrapsus: 1
+  Lophopanopeus: 0
+```{r}
+lin.reg2 <- lm(log_Force ~ log_Height + Species, data = crabs)
+
+# Summary of the model
+summary(lin.reg2)
+```
+  

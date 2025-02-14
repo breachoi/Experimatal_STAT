@@ -1,0 +1,326 @@
+---
+title: "Choi6301hw7"
+author: "Heesu Choi"
+date: "2024-11-07"
+output: pdf_document
+format: 
+  html:
+    toc: true
+    embed-resources: true
+    code-line-numbers: true
+    theme: yeti
+editor: visual
+---
+
+```{r}
+#| include: false
+library(Sleuth3)
+library(tidyverse)
+library(Sleuth3)
+library(DescTools)
+library(agricolae)
+library(multcomp)
+library(ggplot2)
+```
+
+## Question1
+
+a.  Take a guess of the value of the correlation coefficient.\
+    The result of the correlation is positive. Because visual examination of the scatterplot points approximate a straight-line pattern from left and right. Since the pattern is shown straight-line we can assume between minutes played and points scored have strong relationship(0.65). Like in description data is random sample which mean data is independent. In conclusion, all this result shown this is linear relationship.
+
+```{r}
+ball <- read.csv('C:/Users/choih/OneDrive/Desktop/basketball6301_2024.csv')
+processing <- data.frame(MP.10 = ball$MP.10, PTS.10 = ball$PTS.10)
+
+# Create a scatter plot
+ggplot(processing, aes(x = MP.10, y = PTS.10)) + 
+geom_point() 
+```
+
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw7q1.jpg")
+```
+
+b.  correlation between minutes played and points scored
+
+```{r}
+ball <- read.csv('C:/Users/choih/OneDrive/Desktop/basketball6301_2024.csv')
+basket <- data.frame(MP = ball$MP.10, PTS = ball$PTS.10)
+cor.test(ball$MP.10, ball$PTS.10)
+```
+
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw7q12.jpg")
+```
+
+c.  How does the correlation change, if at all? Explain why you think a change did or did not occur?\
+    The correlation did change from delete Kevin's data set.
+    -   Since Durant doesn’t follow the trend as closer as the other listed players by removing him from the dataset it helps the positive correlation of the points become slightly stronger.
+
+```{r}
+ball <- read.csv('C:/Users/choih/OneDrive/Desktop/basketball6301_2024_K.csv')
+basket <- data.frame(MP = ball$MP.10, PTS = ball$PTS.10)
+cor.test(ball$MP.10, ball$PTS.10)
+```
+
+d.  What would be your response to this coach?\
+    The prediction are only valid for values of x inside of the domain of x that were used to build the model. Since he decided it base on Jimmy's data set, He had to know the regression equation is only valid for Jimmy not Kentavious.\
+e.  Describe the population that this data comes from.\
+    Since the subjects were randomly assigned to groups, we can draw casual conclusion. However, the subjects were randomly selected from some population at large, But we cannot generalize the result because all player have different talent or experience.\
+
+\newpage
+
+## Question2
+
+a.  Find the least squares regression line using minutes played to predict the number of points scored. Use Excel to find the slope and intercept.\
+    $\hat{y}$ = 0.624543$\cdot$ minutes - 4.39964\
+
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw7q2.jpg")
+```
+
+b.  Interpret the slope (3 points) AND the intercept (2 points) in the context of the problem.\
+    -   slope: for each minutes spent playing, we except on average that the point increase by 0.624543.\
+    -   intercept: the predicted point for a player who played no minute is -4.39954.\
+c.  6-step hypothesis
+
+-   problem: Using the output below, write the least squares regression line using minutes played to predict the number of points scored
+-   Assumption
+    -   Base on CLT, it has strong evidence against normality of residuals when we see the QQ plots and histogram.\
+    -   Base on plot of residuals, we can see the plot is eqaully spread out which mean it has equal variances. it has no pattern on graph, so we can tell it is linearity is proceed in this case.\
+    -   In this case, we will assume independence although that is in question as well
+-   $H_o$: $\beta 1$ = 0 vs. $H_A$: $\beta 1$ $\ne$ 0\
+-   Critical Value: 2.048407\
+-   t = 8.308297\
+-   p = 4.879099e-09\
+-   decision: reject $H_o$\
+-   conclusion: There is not sufficient evidence at the $\alpha$ = 0.05 level of significant(p=4.879099e-09) to suggest that minute and point are not linearly related.
+
+```{r}
+ball <- read.csv('C:/Users/choih/OneDrive/Desktop/basketball6301_2024.csv')
+lin.reg1 <- lm(MP.10 ~ PTS.10, data=ball)
+par(mfrow=c(2,2))
+plot(lin.reg1)
+
+res.ball <- resid(lin.reg1)
+hist(res.ball, prob = TRUE)
+curve(dnorm(x, mean=mean(res.ball), sd=sd(res.ball)), add=TRUE, 
+col = "blue", main='Histogram of Residuals', xlab='Residuals')
+box()
+
+##Plot of residuals, by index
+plot(res.ball)
+lines(rep(0,length(res.ball)))
+
+plot(ball$MP.10, ball$PTS.10)
+lines(ball$MP.10, lin.reg1$fitted.values)
+plot(lin.reg1)
+
+qt(0.975, 28, lower.tail = T)
+tvalue <- 8.306447039
+df <- 28
+
+#two tail pvalue
+pvalue <- 2*(1-pt(tvalue, df))
+pvalue
+
+```
+
+d.  Using Excel, calculate a 95% confidence interval for the slope.\
+
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw7q22.jpg")
+```
+
+e.  Interpret the interval from part d.
+
+-   It is estimated that for every increase for each minutes spent playing, we except on average that the point increase by 0.624543.We are 95% confident that the when the budget in increased by each minutes the mean score increases between [0.470562, 0.778524].
+
+f.  Verify your results
+
+```{r}
+ball <- read.csv('C:/Users/choih/OneDrive/Desktop/basketball6301_2024.csv')
+
+ball.lm <- lm(PTS.10 ~ MP.10, data=ball)
+summary(ball.lm)
+confint(ball.lm)
+
+```
+
+\newpage
+
+## Question3
+
+a.  Use ggplot to create a scatter plot in R\
+
+```{r}
+ball <- read.csv('C:/Users/choih/OneDrive/Desktop/basketball6301_2024.csv')
+
+##Using ggplot
+ggplot(ball, aes(x=MP.10, y=PTS.10)) +
+  geom_point(size=2, color="blue") + 
+  geom_smooth(method="loess") +
+  ggtitle("basketball") +
+  theme_classic() +
+  xlab("Average Minutes Played (last 10 games)") +
+  ylab("Average points Scored (last 10 games)") +
+  theme(legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5, size=16, face="bold"))
+
+```
+
+B.  fit a linear regression line and write down the estimated equation below./
+
+-   $\hat{y}$ = -4.39954 + 0.624543 $\cdot$ minutes
+
+```{r}
+ball <- read.csv('C:/Users/choih/OneDrive/Desktop/basketball6301_2024.csv')
+lin.reg1 <- lm(MP.10 ~ PTS.10, data=ball)
+par(mfrow=c(2,2))
+plot(lin.reg1)
+
+res.ball <- resid(lin.reg1)
+hist(res.ball, prob = TRUE)
+curve(dnorm(x, mean=mean(res.ball), sd=sd(res.ball)), add=TRUE, 
+col = "blue", main='Histogram of Residuals', xlab='Residuals')
+box()
+
+##Plot of residuals, by index
+plot(res.ball)
+lines(rep(0,length(res.ball)))
+
+plot(ball$MP.10, ball$PTS.10)
+lines(ball$MP.10, lin.reg1$fitted.values)
+plot(lin.reg1)
+```
+
+c.  Modify your Excel file from above to include calculations for confidence intervals for the mean and prediction intervals for individual outcomes.\
+
+-   We are 95% confident that the mean score when the playing time is 28.435(JAE.CROWDER) between 12.00385 and 14.71493 points.\
+
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw7q3.jpg")
+```
+
+d.  What is a range of plausible values for the number of points averaged over the last 10 games for any one single player?\
+We are 95% confident we can predict that if a single player’s time played for 10 games is 34 minutes, their average score for the past 10 games will be between 10.43278 to 24.22779 points.\
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw7q35.jpg")
+```
+
+e.  SAS
+
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw7q32.jpg")
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw7q33.jpg")
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw7q34.jpg")
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw7q36.jpg")
+
+```
+
+\newpage
+
+## Question4
+
+You may use either SAS or R, and your analysis should include the following:\
+• A plot of the raw data.\
+
+```{r}
+# Load Data
+wine_c <- read.csv('C:/Users/choih/OneDrive/Desktop/ex0823.csv')
+winelist <- data.frame(Mortality = wine_c$Mortality, Wine = wine_c$Wine)
+
+# Regular linear regression
+lin.reg1 <- lm(Mortality ~ Wine, data=wine_c)
+par(mfrow=c(2,2))
+plot(lin.reg1)
+
+```
+
+• If necessary, describe any transformations done and also include the resulting plots.\
+- The scatter plots from raw data is show outliers and extreme values. Since raw data is not reasonable to use for linear regression we need to do transformation data for make data fit the linear regression. to find the better linear regression, we were run 3 different type of models. In conclusion, compared 3 different type of models. the Log-Log model seems most clear model to analysis data.
+
+```{r}
+# Load Data
+wine_c <- read.csv('C:/Users/choih/OneDrive/Desktop/ex0823.csv')
+winelist <- data.frame(Mortality = wine_c$Mortality, Wine = wine_c$Wine)
+winelist$logm <- log(wine_c$Mortality)
+winelist$logw <- log(wine_c$Wine)
+
+# Linear-Log model
+lin.reg3 <- lm(Mortality ~ log(Wine), data=wine_c)
+par(mfrow=c(2,2))
+plot(lin.reg3)
+# Log-Linear model
+lin.reg4 <- lm(log(Mortality) ~ Wine, data=wine_c)
+par(mfrow=c(2,2))
+plot(lin.reg4)
+# Log-Log model
+lin.reg5 <- lm(log(Mortality) ~ log(Wine), data=wine_c)
+par(mfrow=c(2,2))
+plot(lin.reg5)
+```
+
+• An evaluation of the model assumptions via diagnostic plots.\
+- Assumption\
+- It has not strong evidence against normality of residuals when we see the QQ plots.\
+- Base on plot of residuals, we can see the plot is eqaully spread out which mean it has equal variances. it has no pattern on graph, so we can tell it is linearity is proceed in this case.\
+- In this case, we cannot find any evidence that data is independence.\
+
+• Output from the final model.\
+
+```{r}
+# Read the data
+wine_c <- read.csv('C:/Users/choih/OneDrive/Desktop/ex0823.csv')
+
+# Create new data frame with log-transformed Mortality and Wine
+winelist <- data.frame(Mortality = wine_c$Mortality, Wine = wine_c$Wine)
+winelist$logm <- log(wine_c$Mortality)
+winelist$logw <- log(wine_c$Wine)
+
+# Linear model: log(Mortality) ~ log(Wine)
+model1 <- lm(logm ~ logw, data=winelist)
+
+# Summary of the model
+summary(model1)
+
+confint(model1)
+
+```
+
+• A written/typed regression equation.\
+$\hat{Y}$ = 2.55555 -0.35560 \* Liters\
+
+• An answer to the primary question of interest (“Do these data suggest that the heart disease rate is associated with average wine consumption?”)\
+Yes, see the $R^{2}$ from the result, it's 0.7384 which mean 73.84% of the variation in the mortality rate is explained by the average of countries'men average wine consumption. Also another evidence is p-value from the result. Since $\alpha$= 0.05, the p-value is enough to reject $H_o$\
+
+• An interpretation of the slope for your final regression equation.\
+slop: 0.35560\
+
+• A confidence interval for the slope of your final regression equation.\
+confidence interval: [0.4677588, 0.2434331]\
+
+• An answer to the secondary question of interest (“Do any countries have substantially higher or lower death rates than others with similar wine consumption rates?”).\
+- From the plot we can find the outlier which 12,5,1. Australia and Finland’s mortality rates are higher and Norway’s is lower.\
+
+```{r}
+##Residual plots, regular linear regression
+wine_c <- read.csv('C:/Users/choih/OneDrive/Desktop/ex0823.csv')
+
+# Create new data frame with log-transformed Mortality and Wine
+winelist <- data.frame(Mortality = wine_c$Mortality, Wine = wine_c$Wine)
+winelist$logm <- log(wine_c$Mortality)
+winelist$logw <- log(wine_c$Wine)
+
+lin.reg5 <- lm(log(Mortality) ~ log(Wine), data=wine_c)
+par(mfrow=c(2,2))
+plot(lin.reg5, which = 1)
+
+winelist[c(12,5,1),]
+```
+
+• The coefficient of determination for your final model, along with an interpretation.\
+coefficient: 0.7384 Interpretation: 73.84% of the variation in the mortality rate is explained by the countries’ men’s wine consumption.
+
+• Address the scope of inference\
+- Since this is an observational study we cannot draw causal inferences. the linear regression is higher possible linear relationship between wine consumption and mortality rate we cannot conclude that wine consumption directly affect heart disease. The data was randomly selected from 18 different countries.

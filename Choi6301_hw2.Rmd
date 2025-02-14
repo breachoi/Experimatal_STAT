@@ -1,0 +1,243 @@
+---
+title: "Choi6301hw2"
+output: pdf_document
+date: "2024-09-18"
+format: 
+  html:
+    toc: true
+    embed-resources: true
+    code-fold: true
+    code-line-numbers: true
+    code-summary: "homework code"
+    code-tools: true
+    theme: yeti
+editor: visual
+---
+
+# Total Score: 80
+
+```{r setup}
+#| include: false
+library(Sleuth3)
+```
+
+```{r}
+#| include: false
+#' Credit: Volodymyr Orlov
+#' https://github.com/VolodymyrOrlov/MSDS6371/blob/master/shade.r
+
+#' Draws a t-distribution curve and shades rejection regions
+#' 
+#' @param df degrees of freedom.
+#' @param alpha significance level
+#' @param h0 null hypothesis value
+#' @param sides one of: both, left, right
+#' @param t_calc calculated test statistics
+#' @examples
+#' shade(49, 0.05, 0, t_calc=1.1)
+shade <- function(df, alpha, h0 = 0, sides='both', t_calc=NULL) {
+  e_alpha = alpha
+  if(sides == 'both'){
+    e_alpha = alpha / 2
+  }
+  cv = abs(qt(e_alpha, df))
+  curve(dt(x, df), from = -4, to = 4, ylab='P(x)', xaxt='n') 
+  abline(v = 0, col = "black", lwd = 0.5)
+  labels = h0
+  at = 0
+  if(sides == 'both' | sides == 'left'){
+    x <- seq(-4, -abs(cv), len = 100) 
+    y <- dt(x, df)
+    polygon(c(x, -abs(cv)), c(y, min(y)), col = "blue", border = NA)
+    lines(c(-cv, -cv), c(0, dt(-cv, df)), col = "black", lwd = 1)
+    text(-cv - (4 - cv) / 2, 0.05, e_alpha)
+    labels = c(round(-cv, 3), labels)
+    at = c(-cv, at)
+  }
+  if(sides == 'both' | sides == 'right'){
+    x <- seq(abs(cv), 4, len = 100)
+    y <- dt(x, df)
+    polygon(c(abs(cv), x), c(min(y), y), col = "blue", border = NA)
+    lines(c(cv, cv), c(0, dt(cv, df)), col = "black", lwd = 1)
+    text(cv + (4 - cv) / 2, 0.05, e_alpha)
+    labels = c(labels, round(cv, 3))
+    at = c(at, cv)
+  }
+  if(is.numeric(t_calc)){
+    abline(v = t_calc, col = "red", lwd = 2)
+    text(t_calc + 0.5, 0.2, t_calc, col = "red")
+  }
+  axis(1, at=at, labels=labels)
+}
+```
+
+## **Question 1**
+
+<!-- total 14 -->
+
+<!-- total 13 -->
+
+***Part A*** <!-- total 12 the hypotheses is not correct but another step is correct -->\
+:On the basis of this test, at the 0.05 significance level there is not enough evidence to reject the claim that the mean weight of bumblebee bats is equal to 1.8g(p=0.0992). A 95% confidence interval is(1.7622, $\infty$ )grams. The problem was ambiguous on the randomness of the sample thus we will assume that it was not a random sample, making inference to all bumblebee bats strictly speculative.\
+$H_o: \mu\ <= 1.8$ $H_a: \mu\ >= 1.8$(assume $\alpha\ = 0.05$)\
+
+```{r}
+    knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q1_1.jpg")
+    knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q1_2.jpg")
+    knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q1_3.jpg")
+```
+
+***Part B*** <!-- total 1  -->\
+
+```{r}
+bumblebee <- c(2.3, 2.1, 2.1, 2.0, 1.8, 2.0, 1.6, 1.5, 1.9, 2.7, 1.9, 1.2, 2.4, 1.5, 1.8, 2.0)
+
+##Use this command to find the critical value for an alpha=0.05 test with 6 degrees of freedom
+length(bumblebee)
+qt(0.95, 6, lower.tail=T)
+
+##This command gives both a t-test and a confidence interval
+t.test(bumblebee, mu=1.8, alternative='greater', conf.level=0.95)
+
+```
+
+## **Question 2**
+
+<!-- total 35 -->
+
+***Part A*** <!-- total 3-->\
+:On the basis of this test, at the 0.05 significance level there is not enough evidence to reject the claim that the the mean age is not really different between the groups(p=0.3041). A 95% confidence interval is(-1.760944, 5.484754). This test want to find out the relationship between the age and employment status, but like as we can see the result of test there is no relationship between age and employment status.The samples of the test is randomly selected which mean we can conclusion this is the causal inferences can made.\
+$$ H_0: \mu_{\text{fired}} - \mu_{\text{notfired}} = 0 $$ $$ H_A: \mu_{\text{fired}} -\mu_{\text{notfired}} \neq 0  $$($\alpha\ = 0.05$ )
+
+```{r}
+hw2 <- read.csv("C:/Users/choih/OneDrive/Desktop/STAT6301/hw2_2.csv")
+
+t.test(hw2$age ~ hw2$statuts)
+number_of_permutation <- 50000
+xbarholder <- numeric(0)
+counter <- 0
+
+observed_diff <- mean(subset(hw2, statuts=="fired")$age)-mean(subset(hw2, statuts=="notfired")$age)
+
+for(i in 1:number_of_permutation)
+{
+  scramble <- sample(hw2$age, 51)
+  
+  fired <- scramble[1:21]
+  notfired <- scramble[22:51]
+  
+  diff <- mean(fired) - mean(notfired)
+  
+  xbarholder[i] <- diff
+  
+  if(abs(diff) > abs(observed_diff))
+  counter <- counter +1
+}
+
+hist(xbarholder)
+pvalue <- counter / number_of_permutation
+#xbarholder[which(abs(xbarholder)>observed_diff)]
+pvalue
+```
+
+***Part B*** <!-- total 15 -->\
+:On the basis of this test, at the 0.05 significance level there is not enough evidence to reject the claim that the the mean age of those fired group is greater than not fired group(p=0.1441). A 95% 1-side confidence interval is(-1.0268, $\infty$ ). This test want to find out the relationship between the age and employment status, but like as we can see the result of test there is no relationship between age and emploment status.The samples of the test is randomly selected which mean we can conclusion this is the causal inferences can made.\
+$$ H_0: \mu_{\text{fired}} - \mu_{\text{notfired}} > 0 $$ $$ H_A: \mu_{\text{fired}} -\mu_{\text{notfired}} < 0  $$($\alpha\ = 0.05$ )
+
+```{r}
+  knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q2_1.jpg")
+  knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q2_2.jpg")
+
+
+```
+
+***Part C*** <!-- total 4 -->
+
+:   Part A p-value is way bigger than part B p-value\
+
+***Part D*** <!-- total 3 -->
+
+:   The confidence interval between fired and not fired group is (-1.5939, 5.2511) which mean the age of person who can be fired is anywhere between those interval values. Since it cannot reject the Ho, it shows there is no difference in average age between fired and not fired groups.\
+
+```{r}
+  knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q2_4.jpg")
+```
+
+***Part E*** <!-- total 5 -->
+
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q2e1.png")
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q2e2.png")
+```
+
+***Part F*** <!-- total 5 -->
+
+```{r}
+t.test(x= notfired, y =fired, conf.level = 0.95, val.equal =TRUE,
+       alternative = "greater")
+```
+
+## **Question 3**
+
+<!-- total 16 -->
+
+***Part A*** <!-- total 10 step 1 and 2 is incorrect -->\
+:At the 0.05 significance level, there is not sufficient evidence to suggest that SMU students mean money value is not equal to SeattleU students mean value(p=0.07958). A 95% confidence interval for this difference is (-292.7458, 50.42438). Since this is randomly selected students which mean we can conclusion this is the causal inferences can made\
+$$ H_0: \mu_{\text{SMU}} - \mu_{\text{SeattleU}} = 0$$ $$ H_A: \mu_{\text{SMU}} - \mu_{\text{SeattleU}} \ne 0$$
+
+```{r}
+money_p <- read.csv("C:/Users/choih/OneDrive/Desktop/STAT6301/money_poll2024_hw2.csv")
+
+qt(0.975, 45, lower.tail=T)
+t.test(money ~ name, 
+       data=money_p, 
+       alternative='less', 
+       var.equal=T)
+
+mean.SMU <- mean(subset(money_p, name=='SMU')$money)
+mean.SeattleU <- mean(subset(money_p, name=='SeattleU')$money)
+sd.SMU <- sd(subset(money_p, name=='SMU')$money)
+sd.SeattleU <- sd(subset(money_p, name=='SeattleU')$money)
+
+sp <- sqrt(((32-1)*sd.SMU^2+(61-1)*sd.SeattleU^2)/(32+61-2))
+test.stat <- (mean.SMU-mean.SeattleU)/(sp*sqrt(1/32+1/61))
+crit.value <- qt(0.95, 91, lower.tail=T)
+shade(91, 0.05, 0, t_calc=NULL, sides='right')
+
+t.test(money ~ name, 
+       data=money_p, 
+       alternative='two.sided', 
+       conf.level=0.95, 
+       var.equal=T)
+```
+
+***Part B*** <!-- total 6 -->
+
+:   This week permutation p-value(p=0.1592) is bigger than last week permutation p-value(0.14). Last week we did the permutation based on p value and that way is more flexible than t-test. t-test is more sensitive than p value permutation test.
+
+## **Question 4**
+
+<!-- total 15 -->
+
+***Part A*** <!-- total 5 -->
+
+```{r}
+  knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q4_3.jpg")
+  knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q4_1.jpg")
+  knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q4_2.jpg")
+```
+
+***Part B*** <!-- total 5 -->
+
+```{r}
+  knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q4_4.jpg")
+  knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q4_5.jpg")
+```
+
+***Part C*** <!-- total 5 -->\
+:Power of 60% has n = 1100 and power of 80% has n = 1762 which mean power of 60% is more save than power of 80%
+
+```{r}
+  knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q4_6.jpg")
+  knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/hw2q4_7.jpg")
+```
