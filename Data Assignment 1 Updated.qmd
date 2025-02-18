@@ -1,0 +1,334 @@
+---
+title: "Data Assignment 1"
+format: html
+editor: visual
+---
+
+```{r}
+library(caret)
+library(tidymodels)
+library(tidyverse)
+library(tidyr)
+library(glmnet)
+```
+
+```{r}
+saleprice <- read.csv('C:/SASDATA/train.csv')
+sp_test <- read.csv('C:/SASDATA/test.csv')
+```
+
+## Part I & II
+
+```{r}
+## feature engineering
+## Combine all bathrooms
+saleprice$TotBathrooms <- saleprice$FullBath + (saleprice$HalfBath*0.5) + saleprice$BsmtFullBath + (saleprice$BsmtHalfBath*0.5)
+
+sp_test$TotBathrooms <- sp_test$FullBath + (sp_test$HalfBath*0.5) + sp_test$BsmtFullBath + (sp_test$BsmtHalfBath*0.5)
+
+## Combine living space areas
+saleprice$TotalSqFeet <- saleprice$GrLivArea + saleprice$TotalBsmtSF
+
+sp_test$TotalSqFeet <- sp_test$GrLivArea + sp_test$TotalBsmtSF
+
+## Consolidating Porch variables
+saleprice$TotalPorchSF <- saleprice$OpenPorchSF + saleprice$EnclosedPorch + saleprice$X3SsnPorch + saleprice$ScreenPorch
+
+sp_test$TotalPorchSF <- sp_test$OpenPorchSF + sp_test$EnclosedPorch + sp_test$X3SsnPorch + sp_test$ScreenPorch
+```
+
+```{r}
+## Deleting old columns
+saleprice$FullBath <- NULL
+saleprice$HalfBath <- NULL
+saleprice$BsmtFullBath <- NULL
+saleprice$BsmtHalfBath <- NULL
+saleprice$GrLivArea <- NULL
+saleprice$TotalBsmtSF <- NULL
+saleprice$OpenPorchSF <- NULL
+saleprice$EnclosedPorch <- NULL
+saleprice$X3SsnPorch <- NULL
+saleprice$ScreenPorch <- NULL
+
+sp_test$FullBath <- NULL
+sp_test$HalfBath <- NULL
+sp_test$BsmtFullBath <- NULL
+sp_test$BsmtHalfBath <- NULL
+sp_test$GrLivArea <- NULL
+sp_test$TotalBsmtSF <- NULL
+sp_test$OpenPorchSF <- NULL
+sp_test$EnclosedPorch <- NULL
+sp_test$X3SsnPorch <- NULL
+sp_test$ScreenPorch <- NULL
+
+## Log-transformation
+saleprice$SalePrice <- log(saleprice$SalePrice)
+```
+
+```{r}
+## I want to clean the dataset first, seperately
+## Combining training & testing datasets to get consistent data cleaning results
+combined <- rbind(saleprice[,-71],sp_test)
+
+## Identify nzv
+nearZeroVar(combined,names=T)
+
+combined_rec <- recipe(~ ., data = combined) %>% 
+                 step_filter_missing(all_predictors(),threshold = 0.2) %>%
+                 step_impute_median(all_numeric_predictors()) %>% 
+                 step_unknown(all_nominal_predictors()) %>% 
+                 step_dummy(all_nominal_predictors()) %>% 
+                 step_nzv(all_predictors()) %>% 
+                 step_corr(threshold = 0.8)
+
+## Applying the pre-processing steps to the full dataset
+combined2 <- juice(prep(combined_rec))
+
+## Retrieve training & testing datasets & remove ids
+train <- combined2[1:1460,][,-1]
+train$SalePrice <- saleprice$SalePrice
+test <- combined2[1461:2919,][,-1]
+```
+
+## Part III
+
+```{r}
+# Checking variables
+head(train)
+```
+
+```{r}
+# Remove dummy variables
+train_tmp <- train[-c(25:99)]
+
+# Reshape the data to long format
+train_tmp2 <- pivot_longer(train_tmp, cols = -SalePrice, names_to = "variable", values_to = "value")
+
+# Create faceted scatterplots to find non-linear relationships
+ggplot(train_tmp2, aes(x = value, y = SalePrice)) +
+  geom_point(color = "red", alpha = 0.6) +
+  facet_wrap(~ variable, scales = "free_x") +
+  labs(title = "Pairwise Scatterplots", 
+       x = "Value", y = "SalePrice") +
+  theme_minimal()
+```
+
+```{r}
+## checking non-linear relationship
+plot(train$GarageYrBlt,train$SalePrice)
+```
+
+```{r}
+## Natural Cubic Splines
+ggplot(train, aes(GarageYrBlt, SalePrice)) +
+  geom_point() +
+  geom_smooth(
+    method = lm, se = FALSE, color = "red",
+    formula = y ~ ns(x, df = 5)) +
+  theme_bw()
+```
+
+```{r}
+## Setting up the recipe for regression
+train_rec <- recipe(SalePrice ~ ., data = train) %>%
+                  step_ns(GarageYrBlt, deg_free = 5)
+
+## Finalizing training dataset
+train2 <- juice(prep(train_rec))
+```
+
+## Part IV
+
+### Ridge Regression
+
+```{r}
+set.seed(123)
+
+## We are using a 10-fold CV with 5 repeats 
+sp_kfolds <- vfold_cv(train, v = 10, repeats = 5, strata = "SalePrice")
+
+#Specify model (penalty=lambda, mixture=alpha)
+ridge_glmnet <- linear_reg(
+                  penalty = tune(), 
+                  mixture = 0) %>% 
+                  set_mode("regression") %>%
+                  set_engine("glmnet") 
+
+## Specify modeling procedure
+ridge_wf <- workflow() %>% 
+            add_recipe(train_rec) %>% 
+            add_model(ridge_glmnet)
+
+## Tuning the model
+ridge_tune <- tune_grid(
+              ridge_wf,
+              resamples = sp_kfolds,
+              grid = 10,
+              metrics = metric_set(rmse))
+
+#Display best performing combinations
+ridge_tune %>% show_best(metric = "rmse")
+
+##Pull/save the optimal tuning parameter combination
+ridge_best_tune <- ridge_tune %>% select_best(metric = "rmse")
+ridge_best_tune
+
+#Now update our workflow
+ridge_final_workflow <- ridge_wf %>% 
+                        finalize_workflow(ridge_best_tune)
+ridge_final_workflow
+
+##Extract coefficients
+ridge_coef <- ridge_final_workflow %>%
+  fit(train) %>%
+  extract_fit_parsnip() %>%
+  tidy()
+
+ridge_coef
+
+## Plotting the regularization path of the fitted model
+ridge_glmnet <- ridge_final_workflow %>%
+  fit(train) %>%
+  extract_fit_parsnip()
+
+plot(ridge_glmnet$fit)
+```
+
+### Ridge Predictions
+
+```{r}
+# Fit the model using training data
+ridge_fit <- fit(ridge_final_workflow, data = train)
+
+# Predict on the test dataset
+ridge_predictions <- predict(ridge_fit, new_data = test)
+
+## Extracting predictions
+## write.csv(exp(ridge_predictions$.pred),'C:/SASDATA/123.CSV')
+```
+
+### LASSO
+
+```{r}
+#Specify model (penalty=lambda, mixture=alpha)
+LASSO_glmnet <- linear_reg(
+                  penalty = tune(), 
+                  mixture = 1) %>% 
+                  set_mode("regression") %>%
+                  set_engine("glmnet") 
+
+## Specify modeling procedure
+LASSO_wf <- workflow() %>% 
+            add_recipe(train_rec) %>% 
+            add_model(LASSO_glmnet)
+
+## Tuning the model
+LASSO_tune <- tune_grid(
+              LASSO_wf,
+              resamples = sp_kfolds,
+              grid = 10,
+              metrics = metric_set(rmse))
+
+#Display best performing combinations
+LASSO_tune %>% show_best(metric = "rmse")
+
+##Pull/save the optimal tuning parameter combination
+LASSO_best_tune <- LASSO_tune %>% select_best(metric = "rmse")
+LASSO_best_tune
+
+#Now update our workflow
+LASSO_final_workflow <- LASSO_wf %>% 
+                        finalize_workflow(LASSO_best_tune)
+LASSO_final_workflow
+
+##Extract coefficients
+LASSO_coef <- LASSO_final_workflow %>%
+  fit(train) %>%
+  extract_fit_parsnip() %>%
+  tidy()
+
+LASSO_coef
+
+## Plotting the regularization path of the fitted model
+LASSO_glmnet <- LASSO_final_workflow %>%
+  fit(train) %>%
+  extract_fit_parsnip()
+
+plot(LASSO_glmnet$fit)
+```
+
+### LASSO Prediction
+
+```{r}
+# Fit the model using training data
+LASSO_fit <- fit(LASSO_final_workflow, data = train)
+
+# Predict on the test dataset
+LASSO_predictions <- predict(LASSO_fit, new_data = test)
+
+## Extracting predictions
+## write.csv(exp(LASSO_predictions$.pred),'C:/SASDATA/123.CSV')
+```
+
+### Elastic Net
+
+```{r}
+#Specify model (penalty=lambda, mixture=alpha)
+EN_glmnet <- linear_reg(
+                  penalty = tune(), 
+                  mixture = tune()) %>% 
+                  set_mode("regression") %>%
+                  set_engine("glmnet") 
+
+## Specify modeling procedure
+EN_wf <- workflow() %>% 
+            add_recipe(train_rec) %>% 
+            add_model(EN_glmnet)
+
+## Tuning the model
+EN_tune <- tune_grid(
+              EN_wf,
+              resamples = sp_kfolds,
+              grid = 10,
+              metrics = metric_set(rmse))
+
+#Display best performing combinations
+EN_tune %>% show_best(metric = "rmse")
+
+##Pull/save the optimal tuning parameter combination
+EN_best_tune <- EN_tune %>% select_best(metric = "rmse")
+EN_best_tune
+
+#Now update our workflow
+EN_final_workflow <- EN_wf %>% 
+                      finalize_workflow(EN_best_tune)
+EN_final_workflow
+
+##Extract coefficients
+EN_coef <- EN_final_workflow %>%
+  fit(train) %>%
+  extract_fit_parsnip() %>%
+  tidy()
+
+EN_coef
+
+## Plotting the regularization path of the fitted model
+EN_glmnet <- EN_final_workflow %>%
+  fit(train) %>%
+  extract_fit_parsnip()
+
+plot(EN_glmnet$fit)
+```
+
+### EN Prediction
+
+```{r}
+# Fit the model using training data
+EN_fit <- fit(EN_final_workflow, data = train)
+
+# Predict on the test dataset
+EN_predictions <- predict(EN_fit, new_data = test)
+
+## Extracting predictions
+## write.csv(exp(EN_predictions$.pred),'C:/SASDATA/123.CSV')
+```
