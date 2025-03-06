@@ -1,0 +1,156 @@
+---
+title: "homework2_6302"
+author: "Heesu Choi"
+date: "2025-02-27"
+output:
+  html_document:
+    df_print: paged
+editor: visual
+format:
+  html:
+    toc: true
+    embed-resources: true
+---
+
+```{r library}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(tidymodels)
+library(factoextra)
+library(tidytext)
+library(janitor)
+library(Sleuth3)
+```
+
+# Question 1
+
+#### Part A
+
+```{r question1}
+nlsy79 <- ex1223
+
+head(nlsy79[,11:20])
+newPCA <- prcomp(nlsy79[,11:20], center=T, scale=T)
+summary(newPCA)
+
+##Scree plot
+fviz_eig(newPCA)
+
+fviz_pca_var(newPCA, col.var = "contrib", 
+gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+repel = TRUE)
+
+newPCA$rotation
+```
+
+#### Part B
+
+What is a reasonable number of components that can be retained?
+
+:   3, We can identify three key elbow points in the scree plot, which indicate potential choices for the number of principal components to retain. The first elbow occurs between PC1 and PC2, the second is between PC2 and PC4, and the final one is at PC4.
+
+#### Part c
+
+Inspect the loadings for PC1. How might you interpret this component?
+
+:   All loadings being positive indicates that all variables are positively correlated with PC1, meaning they contribute in the same direction. Specifically, Arithmetic, Science, Word, and Math show the highest loadings, suggesting that PC1 captures a common underlying trait among these variables.
+
+#### Part D
+
+Inspect the loadings for PC2. How might you interpret this component?
+
+:   The results for PC2 show that the loadings are divided into positive and negative values, indicating that the variables are still related to PC2 but in opposite directions. This suggests that PC2 captures a contrast or trade-off between two distinct skill sets.
+
+#### Part E
+
+Given below are the largest and smallest values of PC2, along with the corresponding rows of data (the first row is for the max value, the second row is for the min). Just by inspecting the raw data, how can you tell that these would correspond to extreme values of PC2?
+
+:   In the raw data, we observe that certain variables (Coding, Number, Auto, Mechanic, and Elec) exhibit a significant difference between their largest and smallest values. Comparing these results with the PC2 loadings, we can see that these variables contribute strongly to PC2, as indicated by their high absolute loadings. By examining the raw data and focusing on the variables with the highest absolute loadings on PC2, we can visually confirm that the provided rows likely correspond to extreme values of PC2—either high or low. This holds true even if some individual variables do not perfectly follow the expected trend.
+
+#### Part F
+
+Reproduce the PCA using a tidymodels workflow
+
+```{r}
+selected_columns <- colnames(nlsy79)[11:20]
+
+pca_new_rec <- recipe(data = nlsy79, formula = ~ .) %>%
+  step_normalize(all_of(selected_columns)) %>%
+  step_pca(all_of(selected_columns), id = "pca")
+
+
+pca_new_prep <- prep(pca_new_rec)
+
+pca_new_loading <- tidy(pca_new_prep, id="pca") %>%
+                        pivot_wider(names_from = component,
+                                    values_from = value)
+pca_new_loading
+
+pca_new_var <- tidy(pca_new_prep, id = "pca", type = "variance") %>%
+                        pivot_wider(names_from = terms,
+                                    values_from = value) %>%
+                        clean_names()
+```
+
+#### Part G
+
+```{r}
+tidy(pca_new_prep, id = "pca") %>%
+  filter(component %in% paste0("PC", 1:2)) %>%  # Keep only PC1 to PC4
+  group_by(component) %>%
+  slice_max(order_by = abs(value), n = 8) %>%  # Get top 8 absolute loadings
+  ungroup() %>%
+  mutate(terms = reorder_within(terms, abs(value), component)) %>%
+  ggplot(aes(x = abs(value), y = terms, fill = value > 0)) +
+  geom_col() +
+  facet_wrap(~ component, scales = "free_y", nrow = 3) +
+  scale_y_reordered() +
+  labs(x = "Magnitude of Contribution",
+       y = NULL, fill = "Positive?") +
+  theme_bw()
+```
+
+# Question 2
+
+#### Part A
+
+What is the whole plot?
+
+:   Group of three steel bars that are treated under the same oven temperature. Each group is considered a whole plot because temperature is assigned at the group level, not individually to each bar.
+
+#### Part B
+
+What is the whole plot (between blocks) factor?
+
+:   Oven temperature (1500°F vs. 1600°F). Because it is applied to the entire group of three steel bars in each block, but still the blocks are the groups of steel bars to which these temperatures are randomly assigned.
+
+#### Part C
+
+What is the subplot?
+
+:   individual steel bars within each group. Each bar is treated within a group that shares the same oven temperature but is removed from the oven at different times.
+
+#### Part D
+
+What is the subplot (within blocks) factor?
+
+:   three times (10, 20, and 30 minutes). Because it is applied within each block, affecting individual bars.
+
+# Question 3
+
+#### Part A
+
+Randomized Complete Block Design is likely the most straightforward and efficient design. It would allow you to control for individual differences while testing the three rounding methods in a clear and replicable way
+
+#### Part B
+
+The response variable in this experiment is the time (in seconds) it takes for a player to run from home plate to second base.
+
+#### Part C
+
+The experimental units in this design are the 21 baseball players participating in the experiment.
+
+# Question 4
+
+: This experiment follows a one-way complete block design because each day acts as a block and each truck is randomly assigned a music type within that day

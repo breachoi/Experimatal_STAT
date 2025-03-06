@@ -1,0 +1,126 @@
+---
+title: "STAT6302_HW3"
+author: "Heesu Choi"
+date: "2025-03-03"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+editor: visual
+format:
+  html:
+    toc: true
+    embed-resources: true
+    code-line-numbers: true
+    code-tools: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Sleuth3)
+library(ggplot2)
+library(emmeans)
+library(gmodels)
+library(tidyverse)
+```
+
+# Part A
+
+```{r}
+head(ex1317)
+
+#reproduce the table and plot
+strata.act.summary <- ex1317 %>%
+                      group_by(Strata, DepthCat) %>%
+                      summarize(N = n(),
+                      AvgIridium = mean(Iridium, na.rm = TRUE),
+                      SDIridium = sd(Iridium, na.rm = TRUE),
+                      SEIridium = SDIridium/sqrt(N),.groups = "drop")
+
+print(strata.act.summary)                       
+
+ggplot(strata.act.summary, aes(x = DepthCat, y = AvgIridium, group = Strata, color = Strata)) + 
+      geom_errorbar(aes(ymin = AvgIridium - SDIridium, ymax = AvgIridium + SDIridium), 
+                width = 0.1, position = position_dodge(0.1)) +
+      geom_line(position = position_dodge(0.1)) +
+      geom_point(position = position_dodge(0.1)) +
+      theme_bw() 
+
+```
+
+# Part B
+
+: There is no interaction effect between Limestone and Shale. The lines representing these two groups do not touch or cross, indicating no visible interaction. Additionally, if the graph alone is inconclusive, we should refer to the statistical results. The sample size is too small, and the p-value (p = 0.4314) is too large to suggest any significant interaction.
+
+# Part C
+
+```{r}
+strata <- ex1317
+strata$Strata <- as.factor(strata$Strata)
+strata$DepthCat <- as.factor(strata$DepthCat)
+
+strata.anova <- aov(Iridium ~ Strata + DepthCat + Strata*DepthCat, data=strata)
+summary(strata.anova)
+
+##To get diagnostic plots, we need to use a regression model
+stratalm <- lm(Iridium ~ Strata + DepthCat + Strata*DepthCat, data=strata)
+par(mfrow=c(2,2))
+plot(stratalm)
+
+
+#comparisons
+##No need to test for this example since it wasn't significant
+##BUT, had the interaction been significant
+emmeans(strata.anova, pairwise ~ DepthCat)
+emmeans(strata.anova, pairwise ~ Strata)
+
+
+```
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/STAT6302/hw4_1.jpg")
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/STAT6302/hw4_2.jpg")
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/STAT6302/hw4_3.jpg")
+```
+
+
+# Part D
+
+: The residual diagnostics indicate that the model assumptions are not fully met for three key reasons. First, the residuals exhibit heteroscedasticity, meaning their spread is not constant across the fitted values. Second, the QQ plot shows deviations from the expected straight line, suggesting that the normality assumption is violated. Lastly, there is a potentially influential outlier, observation "17," which may be impacting the model's performance.
+
+# Part E
+
+: A two-way ANOVA was conducted to examine the effects of "DepthCat" and "Strata" on "AvgIridium". The analysis revealed a significant main effect of "DepthCat" (F(5, 16) = 12.781, p < 0.0001), indicating that the average Iridium levels differed significantly across the six DepthCat categories. There was also a significant main effect of "Strata" (F(1, 16) = 6.026, p = 0.0259), suggesting that the average Iridium levels differed between the Limestone and Shale strata. However, the interaction between "DepthCat" and "Strata" was not statistically significant (F(5, 16) = 1.033, p = 0.4314), meaning that the effect of DepthCat on average Iridium levels was consistent across both Limestone and Shale strata. The comparison revealed several statistically significant differences between specific DepthCat categories. DepthCat 3 exhibited significantly higher average Iridium levels compared to DepthCat 1 (p = 0.0009), DepthCat 2 (p = 0.0080), DepthCat 5 (p < 0.0001), and DepthCat 6 (p < 0.0001). These results suggest that DepthCat 3 consistently demonstrates a substantially higher average Iridium level compared to several other categories
+
+# Part F
+
+```{r}
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/STAT6302/hw4_4.jpg")
+knitr::include_graphics("C:/Users/choih/OneDrive/Desktop/STAT6302/hw4_5.jpg")
+```
+
+# Part G
+
+```{r}
+# Assuming 'strata' is your dataset
+strata$Strata <- as.factor(strata$Strata)
+strata$DepthCat <- as.factor(strata$DepthCat)
+
+# Apply log transformation to Iridium
+strata$log_Iridium <- log(strata$Iridium)
+
+# Run the ANOVA on log-transformed outcome
+strata.anova_log <- aov(log_Iridium ~ Strata + DepthCat + Strata*DepthCat, data=strata)
+summary(strata.anova_log)
+
+# To get diagnostic plots, use a regression model
+stratalm_log <- lm(log_Iridium ~ Strata + DepthCat + Strata*DepthCat, data=strata)
+par(mfrow=c(2,2))  # Set up the plot area for 4 plots
+plot(stratalm_log)  # Create diagnostic plots for log-transformed data
+
+# Perform pairwise comparisons if interaction is significant
+# No need to test for this example if the interaction wasn't significant
+emmeans(strata.anova_log, pairwise ~ DepthCat)
+emmeans(strata.anova_log, pairwise ~ Strata)
+
+```
+: After transformation data, the residuals and leverage are a bit better after the transformation but the Q-Q plot still shows deviations from normality

@@ -1,0 +1,114 @@
+---
+title: "Choi_Hw1"
+author: "Heesu Choi"
+date: "2025-02-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+
+facebook <- read.csv('C:/Users/choih/OneDrive/Desktop/facebook.csv', sep = ";")
+
+colnames(facebook)[colnames(facebook) == "Page.total.likes.Type.Category.Post.Month.Post.Weekday.Post.Hour.Paid.Lifetime.Post.Total.Reach.Lifetime.Post.Total.Impressions.Lifetime.Engaged.Users.Lifetime.Post.Consumers.Lifetime.Post.Consumptions.Lifetime.Post.Impressions.by.people.who.have.liked.your.Page.Lifetime.Post.reach.by.people.who.like.your.Page.Lifetime.People.who.have.liked.your.Page.and.engaged.with.your.post.comment.like.share.Total.Interactions"] <- "Page.total.likes"
+
+##Q1 (10 points): describe what pre-processing steps are taken below
+facebook_rec <- recipe(Page.total.likes ~ ., data = facebook) %>%
+                step_naomit(all_predictors()) %>%
+#step_naomit removes any rows from the facebook dataset that contain missing values in the predictor variables. didi
+#all_predicotors() specify this should be applied to all the predictor variables.
+                step_dummy(all_nominal_predictors())
+#step_dummy transforms any categorical variables into dummy variables. 
+#all_nominal_predictors() specify that this transformation should be applied to all categorical predictors in the dataset. 
+
+
+##Q2 (10 points): describe what is being done in the line below
+facebook2 <- juice(prep(facebook_rec)) 
+#We use two codes for applies the prepocessing steps defined in the facebooke_rec recipe to the dataset. 
+#Prep() prepares the recipe by learning the required transformations from the training data and storing those transformations.  
+#juice() is used to apply the transformations stored by the prep() function to the actual data and extracts the preprocessed data and applies the transformations defined in the recipe. 
+
+#str(facebook2)
+```
+
+```{r}
+##Q3 (30 points): Describe what is happening in lines 2, 14-18, 22, 24-25, 27-30, and 38
+
+facebook_kfolds <- vfold_cv(facebook, v = 10, repeats = 5, strata = "Page.total.likes")
+# This line effect the k-fold cross-validation on the dataset. vfold_cv() split and repeated the data into 10 folds 5 times.
+facebook_glmnet <- linear_reg(
+                  penalty = tune(), 
+                  mixture = tune()) %>% 
+                  set_mode("regression") %>%
+                  set_engine("glmnet") 
+#This function is linear regression model from glmnet. penalty and mixture set to be tuned that controls the strength of regularization and determines the elastic net mixing parameter 
+facebook_wf <- workflow() %>% 
+            add_recipe(facebook_rec) %>% 
+            add_model(facebook_glmnet)
+#This line build facebook_wf that combine facebook_rec and glmnet 
+facebook_tune <- tune_grid(
+              facebook_wf,
+              resamples = facebook_kfolds,
+              grid = 10,
+              metrics = metric_set(rmse, mae))
+#This line tune the facebook_wf using by facebook_kfolds, grid and metrics.
+facebook_tune %>% show_best(metric = "rmse")
+
+facebook_best_tune <- facebook_tune %>% select_best(metric = "rmse")
+#This line selets the best result of tune base on rmse
+facebook_final_workflow <- facebook_wf %>% 
+                        finalize_workflow(facebook_best_tune)
+#This line finalized the workflow by combine the best tune 
+facebook_coef <- facebook_final_workflow %>%
+  fit(facebook) %>%
+  extract_fit_parsnip() %>%
+  tidy()
+
+facebook_coef
+
+facebook_glmnet <- facebook_final_workflow %>%
+  fit(facebook) %>%
+  extract_fit_parsnip()
+
+plot(facebook_glmnet$fit)
+#This line make a plot base on fitted model.
+```
+
+```{r}
+library(gglasso)
+##Q5 (10 points): describe what the line below is doing
+##Note: you should figure out Q4 first (below)
+grp <- c(1:17, 18, 18, 18)
+
+##Q4 (15 points): describe what is happening in the code below
+set.seed(123) #random number generation
+model2.cv <- cv.gglasso(x=as.matrix(facebook2)[,-18], y=facebook2$Page.total.likes, 
+                        group=grp, pred.loss="L1", nfolds=5)
+#This function specify 5-fold cross validation on the gglasso, where the predictors are grouped as defined in grp. It will compute a performance metric for each folder.
+coef(model2.cv, s="lambda.min")
+#This line extracted coefficients at lambda.min
+```
+
+```{r}
+library(glinternet)
+##Q6 (10 points): describe what is happening below and why it is necessary
+facebook3 <- facebook %>% filter(complete.cases(.))
+#This line filtes missing data,
+facebook3$TypeCat <- with(facebook3, ifelse(Type=='Photo', 0,
+                                        ifelse(Type=='Status', 1,
+                                           ifelse(Type=='Link', 2, 3))))
+#This function convert the data type categorical values to numeric values  
+##Q7 (15 points): describe what is happening below
+set.seed(123) #Random number generation 
+model3.cv <- glinternet.cv(facebook3[,-c(1:2)], facebook3[,1], 
+                           numLevels=c(rep(1, 17), 4), nFolds=5)
+#This function runs a cross-validation for a generalized linear internet regression model using by 5-fold cross-validation. 
+coef(model3.cv)
+#This line extracts the coefficients of the model.
+```
+
